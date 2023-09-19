@@ -23,12 +23,18 @@ def remove_letters(c):
 data= data.applymap(remove_letters)
 data.set_index('geo', inplace = True)
 data = data.T
-#data = data.drop([2000,2001,2002,2003,2004,2005,2006,2007,2008,2009,2010])
-data = data.drop('AL', axis = 1)
+data = data.drop([2000,2001,2002,2003,2004,2005,2006,2007,2008,2009,2010])
+data = data.drop(['AL', 'TR', 'EU27_2020', 'EU28', 'IS', 'ME'], axis = 1)
 data.head(5)
 
-#Plotting the growth from 2000 to 2021
-for country in data.columns:
+
+#plotting data from 2012 to 2021
+fig, axi = plt.subplots(nrows=11, ncols=3,figsize=(25, 15))
+axi = axi.ravel()
+
+for i, country in enumerate(data.columns):
     values = data[country].dropna()
     years = data.index[:len(values)]
-    plt.plot(years, values, label=country)
+    ax = axi[i]
+    ax.plot(years, values)
+    ax.set_title(country)
