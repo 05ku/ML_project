@@ -28,7 +28,7 @@ data = data.drop(['AL', 'TR', 'EU27_2020', 'EU28', 'IS', 'ME'], axis = 1)
 data.head(5)
 
 
-#plotting data from 2012 to 2021
+#Plotting data from 2012 to 2021, each country with its own plot
 fig, axi = plt.subplots(nrows=11, ncols=3,figsize=(25, 15))
 axi = axi.ravel()
 
@@ -38,3 +38,10 @@ for i, country in enumerate(data.columns):
     ax = axi[i]
     ax.plot(years, values)
     ax.set_title(country)
+
+
+#Plotting data from 2012 to 2021, all countries in a same plot
+for country in data.columns:
+    values = data[country].dropna()
+    years = data.index[:len(values)]
+    plt.plot(years, values, label=country)
