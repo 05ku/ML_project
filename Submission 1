@@ -1,15 +1,14 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-
 from sklearn.linear_model import LinearRegression 
-from sklearn.linear_model import LogisticRegression
 
 col = ['geo',2000,2001,2002,2003,2004,2005,2006,2007,2008,2009,2010,2011,2012,2013,2014,2015,2016,2017,2018,2019,2020,2021]
 
-data = pd.read_table('sdg_02_40_tabular.tsv', names = col, skiprows = 1, na_values = ':')
+data = pd.read_table('sdg_02_40_tabular.tsv', names = col, skiprows = 1)
 countries = [row.split(",")[-1] for row in data['geo']]
 data['geo'] = countries
+data['geo'] += ' org %'
 def remove_letters(c):
     if 'e' in str(c):
         return str(c).replace(' e', '')
@@ -19,16 +18,14 @@ def remove_letters(c):
         return str(c).replace(' r', '')
     else:
         return str(c)
-    
+
 data= data.applymap(remove_letters)
 data.set_index('geo', inplace = True)
 data = data.T
 data = data.drop([2000,2001,2002,2003,2004,2005,2006,2007,2008,2009,2010])
-data = data.drop(['AL', 'TR', 'EU27_2020', 'EU28', 'IS', 'ME'], axis = 1)
-data.head(5)
+data = data.drop(['AL org %', 'TR org %', 'EU27_2020 org %', 'EU28 org %', 'IS org %', 'ME org %', 'EU org %'], axis = 1)
 
-
-#Plotting data from 2012 to 2021, each country with its own plot
+#Plotting data from 2011 to 2021, each country with its own plot
 fig, axi = plt.subplots(nrows=11, ncols=3,figsize=(25, 15))
 axi = axi.ravel()
 
@@ -39,9 +36,74 @@ for i, country in enumerate(data.columns):
     ax.plot(years, values)
     ax.set_title(country)
 
-
-#Plotting data from 2012 to 2021, all countries in a same plot
+#Plotting data from 2011 to 2021, all countries in a same plot
 for country in data.columns:
     values = data[country].dropna()
     years = data.index[:len(values)]
     plt.plot(years, values, label=country)
+colm = ['geo',2011,2012,2013,2014,2015,2016,2017,2018,2019,2020,2021,2022]
+
+#editing the data for all area under farming
+data_all = pd.read_table('tag00025_page_tabular.tsv', names = colm, skiprows = 1)
+countries = [row.split(",")[-1] for row in data_all['geo']]
+data_all['geo'] = countries
+data_all['geo'] += ' area'
+
+def remove_letters(c):
+    if 'e' in str(c):
+        return str(c).replace(' e', '')
+    elif 'd' in str(c):
+        return str(c).replace(' d', '')
+    elif 'b' in str(c):
+        return str(c).replace(' b', '')
+    elif 'p' in str(c):
+        return str(c).replace(' p', '')
+    else:
+        return str(c)
+    
+data_all = data_all.applymap(remove_letters)
+data_all.set_index('geo', inplace = True)
+data_all = data_all.T
+data_all = data_all.drop([2022])
+data_all = data_all.drop(['AL area', 'TR area', 'EU27_2020 area', 'IS area', 'ME area', 'BA area', 'XK area'], axis = 1)
+data_all.head()
+
+#Plotting data from 2011 to 2021, each country with its own plot
+figure, axis = plt.subplots(nrows=11, ncols=3,figsize=(25, 15))
+axis = axis.ravel()
+
+for i, country in enumerate(data_all.columns):
+    vals = data_all[country].dropna()
+    yrs = data_all.index[:len(values)]
+    ax = axis[i]
+    ax.plot(yrs, vals)
+    ax.set_title(country)
+
+
+#Creating a one dataframe from the two dataframes
+data = data.replace(': ', 0)
+data_all = data_all.replace(': ', 0)
+
+col_data = data.columns
+col_data_all = data_all.columns
+
+full_data = pd.DataFrame()
+
+for col1, col2 in zip(col_data, col_data_all):
+    full_data[col1] = data[col1]
+    full_data[col2] = data_all[col2]
+
+
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_squared_error, accuracy_score
+
+X = full_data[['AT area']].to_numpy().reshape(-1, 1)
+y = full_data[['AT org %']].to_numpy()
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+regr = LinearRegression()
+regr.fit(X_train, y_train)
+
+y_pred = regr.predict(X_test)
