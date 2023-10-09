@@ -156,32 +156,33 @@ ridge_tr_error = np.sqrt(mean_squared_error(y_val, y_pred))
 print('Training error:', str(ridge_tr_error))
 
 ## expected values of area in 2030
-predicted = []
-yrs = [2011,2012,2013,2014,2015,2016,2017,2018,2019,2020,2021,2022]
-df = pd.DataFrame({'Year': yrs})
-predicted_area = pd.DataFrame()
+yrs = list(range(2022, 2031))
+predicted_area = pd.DataFrame(index = yrs)
 
 for cc in countries_list:
 
     country_are = full_data[f'{cc} area']
-    country_data = pd.concat([ country_are, df], axis=1)
-    latest_year = 2021
     c_first = float(country_are.values[0])
     c_last = float(country_are[country_are.last_valid_index()])
 
-    are_gr = (c_last / c_first) ** (1 / 10) - 1
-       
-    for year in range(2021 + 1, 2030):
-        pred_are = (1 + are_gr) * float(country_are.tail(1).values[0])
-        predicted.append([year, pred_are])
+    are_gr = (c_last / c_first) ** (1 / (2021-2011)) - 1
+    predicted = []
     
-    predicted_country = pd.DataFrame(predicted, columns=['Year', f'{cc} area'])
+    for year in yrs:
+        pred_are = (1 + are_gr) * float(country_are.tail(1).values[0])
+        are_gr = (pred_are / c_first) ** (1 /(year-2011)) - 1
+        predicted.append(pred_are)
+    
+    predicted_country = pd.DataFrame(predicted, columns= [f'{cc} area'])
     
     if predicted_area.empty:
         predicted_area = predicted_country
     else:
-        predicted_area = pd.merge(predicted_area, predicted_country, on='Year', how='outer')
+        predicted_area = pd.concat([predicted_area, predicted_country], axis = 1)
+
+predicted_area.index = yrs
+print(predicted_area)
 
 ## CALCULATING THE PREDICTED PERCENTAGES IN 2030
 regr.predict(predicted_area)
-ringe.predict(predicted_area)
+ridge.predict(predicted_area)
