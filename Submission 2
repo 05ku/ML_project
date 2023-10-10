@@ -151,9 +151,13 @@ ridge.fit(X_train, y_train)
 
 y_pred = ridge.predict(X_val)
 
-validation_error = np.sqrt(mean_squared_error(y_val, y_val_pred))
+mse_val = np.sqrt(mean_squared_error(y_val, y_val_pred))
 y_train_pred = ridge.predict(X_train)
-training_error = np.sqrt(mean_squared_error(y_train, y_train_pred))
+mse_tr= np.sqrt(mean_squared_error(y_train, y_train_pred))
+alpha = 0.001
+training_error = mse_tr + alpha*np.sum(ridge.coef_ **2)
+validation_error = mse_val  + alpha*np.sum(ridge.coef_ **2)
+
 print(f"Training Error : {training_error}")
 print(f"Validation Error: {validation_error}")
 
