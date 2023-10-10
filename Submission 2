@@ -129,12 +129,12 @@ regr.fit(X_train, y_train)
 
 y_pred = regr.predict(X_val)
 
-tr_error = np.sqrt(mean_squared_error(y_val, y_pred))
+validation_error = np.sqrt(mean_squared_error(y_val, y_val_pred))
+y_train_pred = regr.predict(X_train)
+training_error_regr = np.sqrt(mean_squared_error(y_train, y_train_pred))
+print(f"Training Error : {training_error_regr}")
+print(f"Validation Error: {validation_error}")
 
-print('Training error:', str(tr_error))
-
-#r2score = r2_score(y_train, y_pred)
-#print('R-squared-value:', str(r2score))
 
 
 ##RIDGE
@@ -151,12 +151,15 @@ ridge.fit(X_train, y_train)
 
 y_pred = ridge.predict(X_val)
 
-ridge_tr_error = np.sqrt(mean_squared_error(y_val, y_pred))
+validation_error = np.sqrt(mean_squared_error(y_val, y_val_pred))
+y_train_pred = ridge.predict(X_train)
+training_error = np.sqrt(mean_squared_error(y_train, y_train_pred))
+print(f"Training Error : {training_error}")
+print(f"Validation Error: {validation_error}")
 
-print('Training error:', str(ridge_tr_error))
 
 ## expected values of area in 2030
-yrs = list(range(2022, 2031))
+yrs = list(range(2021, 2031))
 predicted_area = pd.DataFrame(index = yrs)
 
 for cc in countries_list:
@@ -182,6 +185,46 @@ for cc in countries_list:
 
 predicted_area.index = yrs
 print(predicted_area)
+
+
+## expected values of percenteages in 2030
+predicted_per = pd.DataFrame(index = yrs)
+
+for cc in countries_list:
+
+    country_are = full_data[f'{cc} org %']
+    c_first = float(country_are.values[2])
+    c_last = float(country_are[country_are.last_valid_index()])
+
+    are_gr = (c_last / c_first) ** (1 / (2021-2011)) - 1
+    predicted = []
+    
+    for year in yrs:
+        pred_are = (1 + are_gr) * float(country_are.tail(1).values[0])
+        are_gr = (pred_are / c_first) ** (1 /(year-2011)) - 1
+        predicted.append(pred_are)
+    
+    predicted_country = pd.DataFrame(predicted, columns= [f'{cc} org%'])
+    
+    if predicted_per.empty:
+        predicted_per = predicted_country
+    else:
+        predicted_per = pd.concat([predicted_per, predicted_country], axis = 1)
+
+predicted_per.index = yrs
+print(predicted_per)
+
+predicted_area_30 = predicted_area.tail(1)
+predicted_per_30 = predicted_per.tail(1)
+
+ridge_pred = ridge.predict(predicted_area_30)
+
+from tabulate import tabulate
+area_regr = regr_pred/100 * predicted_area.tail(1)
+print(tabulate(area_regr, headers = 'keys', tablefmt = 'plain'))
+
+area_ridge = ridge_pred / 100 * predicted_area.tail(1)
+print(tabulate(area_ridge, headers = 'keys', tablefmt = 'plain'))
 
 ## CALCULATING THE PREDICTED PERCENTAGES IN 2030
 regr.predict(predicted_area)
