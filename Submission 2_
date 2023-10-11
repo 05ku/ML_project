@@ -1,0 +1,234 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+from sklearn.linear_model import LinearRegression, Ridge
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error, accuracy_score, confusion_matrix
+from sklearn.metrics import r2_score
+
+
+## DATA PROCESSING
+col = ['geo',2000,2001,2002,2003,2004,2005,2006,2007,2008,2009,2010,2011,2012,2013,2014,2015,2016,2017,2018,2019,2020,2021]
+countries_list = ['AT','BE','BG','CH','CY','CZ','DE','DK','EE','EL','ES','FI','FR','HR','HU','IE','IT','LT','LU','LV','MK','MT','NL','NO','PL','PT','RO','RS','SE','SI','SK','UK' ]
+
+data = pd.read_table('sdg_02_40_tabular.tsv', names = col, skiprows = 1)
+countries = [row.split(",")[-1] for row in data['geo']]
+data['geo'] = countries
+data['geo'] += ' org %'
+def remove_letters(c):
+    if 'e' in str(c):
+        return str(c).replace(' e', '')
+    elif 'p' in str(c):
+        return str(c).replace(' p', '')
+    elif 'r' in str(c):
+        return str(c).replace(' r', '')
+    else:
+        return str(c)
+    
+data= data.applymap(remove_letters)
+data.set_index('geo', inplace = True)
+data = data.T
+data = data.drop([2000,2001,2002,2003,2004,2005,2006,2007,2008,2009,2010])
+data = data.drop(['AL org %', 'TR org %', 'EU27_2020 org %', 'EU28 org %', 'IS org %', 'ME org %', 'EU org %'], axis = 1)
+
+colm = ['Year',2011,2012,2013,2014,2015,2016,2017,2018,2019,2020,2021,2022]
+
+data_all = pd.read_table('tag00025_page_tabular.tsv', names = colm, skiprows = 1)
+countries = [row.split(",")[-1] for row in data_all['Year']]
+data_all['Year'] = countries
+data_all['Year'] += ' area'
+
+def remove_letters(c):
+    if 'e' in str(c):
+        return str(c).replace(' e', '')
+    elif 'd' in str(c):
+        return str(c).replace(' d', '')
+    elif 'b' in str(c):
+        return str(c).replace(' b', '')
+    elif 'p' in str(c):
+        return str(c).replace(' p', '')
+    else:
+        return str(c)
+    
+data_all = data_all.applymap(remove_letters)
+data_all.set_index('Year', inplace = True)
+data_all = data_all.T
+data_all = data_all.drop([2022])
+data_all = data_all.drop(['AL area', 'TR area', 'EU27_2020 area', 'IS area', 'ME area', 'BA area', 'XK area'], axis = 1)
+data_all.head()
+
+
+## PLOTTING RAW DATA
+# plotting org %
+fig, axi = plt.subplots(nrows=11, ncols=3,figsize=(25, 15))
+axi = axi.ravel()
+
+for i, country in enumerate(data.columns):
+    values = data[country].dropna()
+    years = data.index[:len(values)]
+    ax = axi[i]
+    ax.plot(years, values)
+    ax.set_title(country)
+
+
+# plotting area under farming
+figure, axis = plt.subplots(nrows=11, ncols=3,figsize=(25, 15))
+axis = axis.ravel()
+
+for i, country in enumerate(data_all.columns):
+    vals = data_all[country].dropna()
+    yrs = data_all.index[:len(values)]
+    ax = axis[i]
+    ax.plot(yrs, vals)
+    ax.set_title(country)
+
+## CREATING ONE DATAFRAME from the org% and area under farming
+data = data.replace(': ', 0)
+data_all = data_all.replace(': ', 0)
+
+col_data = data.columns
+col_data_all = data_all.columns
+
+full_data = pd.DataFrame()
+
+for col1, col2 in zip(col_data, col_data_all):
+    full_data[col1] = data[col1]
+    full_data[col2] = data_all[col2]
+
+
+
+## SCATTER PLOT (not useful)
+countries_list = ['AT','BE','BG','CH','CY','CZ','DE','DK','EE','EL','ES','FI','FR','HR','HU','IE','IT','LT','LU','LV','MK','MT','NL','NO','PL','PT','RO','RS','SE','SI','SK','UK' ]
+
+plt.figure(figsize=(10, 6))
+for country_code in countries_list:
+    x_values = full_data[f'{country_code} area'].values.astype(float)  # Convert to float
+    y_values = full_data[f'{country_code} org %'].values.astype(float)  # Convert to float
+    plt.scatter(x_values, y_values, label=country_code, alpha=0.7)
+
+plt.xlabel('Organic Area')
+plt.ylabel('Organic Percentage')
+plt.title('Scatter Plot of Organic Percentage vs. Organic Area')
+plt.legend()
+plt.grid(True)
+plt.show()
+
+
+### ML models ###
+
+##LINEAR REGRESSION
+
+target = data.columns.tolist()
+features = data_all.columns.tolist()
+
+X = full_data[features].values
+y = full_data[target].values
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1)
+X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.1/0.9)
+
+regr = LinearRegression()
+regr.fit(X_train, y_train)
+
+y_val_pred = regr.predict(X_val)
+y_train_pred = regr.predict(X_train)
+y_test_pred = regr.predict(X_test)
+
+
+training_error_regr = np.sqrt(mean_squared_error(y_train, y_train_pred))
+validation_error_regr = np.sqrt(mean_squared_error(y_val, y_val_pred))
+test_error_regr = np.sqrt(mean_squared_error(y_test, y_test_pred))
+print(f"Training Error : {training_error_regr}")
+print(f"Validation Error: {validation_error_regr}")
+print(f"Test Error: {test_error_regr}")
+
+
+##RIDGE
+target = data.columns.tolist()
+features = data_all.columns.tolist()
+
+X = full_data[features].values
+y = full_data[target].values
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1)
+X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.1/0.9)
+ridge = Ridge(alpha = 0.001)
+ridge.fit(X_train, y_train)
+
+y_val_pred_r = ridge.predict(X_val)
+y_train_pred_r = ridge.predict(X_train)
+y_test_pred_r = ridge.predict(X_test)
+
+training_error_ridge = np.sqrt(mean_squared_error(y_train, y_train_pred_r))
+validation_error_ridge = np.sqrt(mean_squared_error(y_val, y_val_pred_r))
+test_error_ridge = np.sqrt(mean_squared_error(y_test, y_test_pred_r))
+print(f"Training Error : {training_error_ridge}")
+print(f"Validation Error: {validation_error_ridge}")
+print(f"Test Error: {test_error_ridge}")
+
+
+
+## THE FUTURE
+
+yrs = list(range(2021, 2031))
+predicted_area = pd.DataFrame(index = yrs)
+
+for cc in countries_list:
+
+    country_are = full_data[f'{cc} area']
+    c_first = float(country_are.values[0])
+    c_last = float(country_are[country_are.last_valid_index()])
+
+    are_gr = (c_last / c_first) ** (1 / (2021-2011)) - 1
+    predicted = []
+    
+    for year in yrs:
+        pred_are = (1 + are_gr) * float(country_are.tail(1).values[0])
+        are_gr = (pred_are / c_first) ** (1 /(year-2011)) - 1
+        predicted.append(pred_are)
+    
+    predicted_country = pd.DataFrame(predicted, columns= [f'{cc} area'])
+    
+    if predicted_area.empty:
+        predicted_area = predicted_country
+    else:
+        predicted_area = pd.concat([predicted_area, predicted_country], axis = 1)
+
+predicted_area.index = yrs
+
+
+predicted_per = pd.DataFrame(index = yrs)
+data = data.replace(0, np.nan)
+for cc in countries_list:
+    country_are = data[f'{cc} org %'] 
+    
+    c_first = float(country_are[country_are.first_valid_index()])
+    c_last = float(country_are[country_are.last_valid_index()])
+
+    are_gr = (c_last / c_first) ** (1 / (2021-2011)) - 1
+    predicted = []
+    
+    for year in yrs:
+        pred_are = (1 + are_gr) * float(country_are.tail(1).values[0])
+        are_gr = (pred_are / c_first) ** (1 /(year-2011)) - 1
+        predicted.append(pred_are)
+    
+    predicted_country = pd.DataFrame(predicted, columns= [f'{cc} org%'])
+    
+    if predicted_per.empty:
+        predicted_per = predicted_country
+    else:
+        predicted_per = pd.concat([predicted_per, predicted_country], axis = 1)
+
+predicted_per.index = yrs
+
+
+
+predicted_area_30 = predicted_area.tail(1)
+predicted_per_30 = predicted_per.tail(1)
+
+regr_pred_30 = regr.predict(predicted_area_30)
+ridge_pred_30 = ridge.predict(predicted_area_30)
+
+## The area under organic farming in 2030
+ridge_pred/100 * predicted_area.tail(1)
